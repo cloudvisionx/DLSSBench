@@ -1,10 +1,16 @@
 # DLSS Bench
 
-Windows 原生 NVIDIA FP16 Tensor Core 算力测试工具。用户只需 Windows x64 和兼容的 NVIDIA 驱动。
+在尝试 GPU unlock 前，先测量实际 Tensor Core 吞吐，帮助判断当前是否需要解除相应的算力限制。Windows 原生独立程序，用户只需 Windows x64 和兼容的 NVIDIA 驱动。
 
-A native Windows benchmark for NVIDIA FP16 Tensor Core throughput. Users only need Windows x64 and a compatible NVIDIA driver.
+A native Windows benchmark to measure Tensor Core throughput before attempting GPU unlock and help decide whether the relevant throughput limit needs unlocking. Users only need Windows x64 and a compatible NVIDIA driver.
 
 [下载 Windows 预览版 / Download Windows preview](https://github.com/cloudvisionx/DLSSBench/releases/tag/v1.0.0)
+
+![DLSS Bench：RTX 3090 实测界面 / Actual benchmark results on RTX 3090](docs/images/dlss-bench.png)
+
+RTX 3090 实测截图：FP16 输入，分别使用 FP16 / FP32 累加，每项 7 轮。截图来自一次运行，不是解锁前后对照。
+
+Actual RTX 3090 screenshot: FP16 inputs, separate FP16 / FP32 accumulation, seven trials per configuration. This is one run, not a before/after unlock comparison.
 
 ## 下载与运行 / Download and run
 
@@ -30,6 +36,26 @@ Dense FP16-input/output GEMM with separate FP16 and FP32 accumulation. The bilin
 名称为 DLSS Bench；当前版本测量矩阵计算吞吐，不测量 DLSS 游戏帧率或图像质量。
 
 The current version measures matrix-compute throughput. It does not benchmark DLSS game frame rates or image quality.
+
+## 是否需要 GPU unlock？ / Do I need GPU unlock?
+
+**先测试，再决定。若本次启动没有执行过 unlock，且校验通过的持续吞吐明显超过该卡、该累加精度在相应运行频率下的受限上限，就无需为解除这项吞吐限制再执行 unlock。**
+
+**Test first. If no unlock tool has run during this boot and validated, sustained throughput clearly exceeds the capped ceiling for your GPU, accumulation precision and operating clocks, there is no need to unlock that throughput limit.**
+
+- 分别看 **FP16 累加**和 **FP32 累加**。FP16 累加的高分不能代替 FP32 累加的判断；两项输入均为 FP16。
+- 低于或接近受限上限，不能直接判定需要解锁：频率、功耗、温度、后台负载、矩阵大小和内核效率也会影响分数。
+- 解锁后测到高分，只说明当前启动会话的性能；要判断能否省略 unlock，应在确认没有执行解锁的启动中测试。
+
+Check **FP16 and FP32 accumulation separately**; both use FP16 inputs. A low or borderline score is inconclusive because clocks, power, temperature, background load, matrix size and kernel efficiency also affect throughput. A high post-unlock score describes the current boot; deciding whether unlock can be skipped requires a boot in which no unlock tool has run.
+
+以 RTX 3090 为例：在 1740 MHz 参考频率下，常规 FP32 累加半速上限约 **73.05 TFLOPS**；截图中的同项实测约 **124.02 TFLOPS**。这展示了如何比较受限水平，不能把 73.05 当作所有显卡、所有频率的固定阈值。
+
+For an RTX 3090 at a reference clock of 1740 MHz, the usual half-rate FP32-accumulation ceiling is about **73.05 TFLOPS**, versus **124.02 TFLOPS** in the screenshot. This illustrates the comparison; 73.05 is not a universal cutoff for other GPUs or clocks.
+
+当前版本提供性能证据，需人工对照，不会自动判定锁定状态，也不会执行 unlock。频率上界、计算公式及判断边界见 [GPU unlock 判断指南](docs/GPU_UNLOCK_CHECK.md)。
+
+The current version provides performance evidence for manual interpretation; it does not automatically detect lock status or perform an unlock. See the [GPU unlock decision guide](docs/GPU_UNLOCK_CHECK.md) for clock bounds, formulas and interpretation limits.
 
 ## 兼容性与结果解释 / Compatibility and interpretation
 
