@@ -1,0 +1,9 @@
+/build/
+/Reports/
+/.vs/
+__pycache__/
+*.py[cod]
+*.pdb
+*.obj
+*.ilk
+*.user

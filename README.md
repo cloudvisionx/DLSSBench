@@ -47,6 +47,23 @@ Results come from a fixed GEMM backend, not an exhaustive hardware peak search. 
 
 The embedded GEMM kernels derive from Triton's MIT-licensed matrix multiplication tutorial. Notices are included in this repository, the release ZIP and the app's About dialog.
 
-当前仓库提供二进制预览版和使用文档。
+## 源码与构建 / Source and build
 
-This repository currently distributes a binary preview and usage documentation.
+- `src`: Win32 GUI, CUDA Driver API backend, timing, validation and report export.
+- `kernels/fp16_native_kernel.py`: FP16-input GEMM with FP16 / FP32 accumulation.
+- `kernels/generated`: validated embedded GPU kernels and their manifest.
+- `tools/build.ps1`: standalone MSVC build; `tools/build_kernels.py`: optional GPU kernel rebuild.
+
+开发机需要 MSVC C++ 工具、Windows SDK 和 CUDA 开发头文件。普通构建使用仓库内的预编译内核，无需 Python 或 Triton。运行成品仍只需 Windows 和 NVIDIA 驱动。
+
+Developers need MSVC, a Windows SDK and CUDA development headers. Normal builds use the checked-in kernels and need no Python or Triton. End users still need only Windows and the NVIDIA driver.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\build.ps1
+```
+
+[完整构建与验证说明 / Build and verification guide](docs/BUILD.md)
+
+应用源码目前未另行指定项目级许可证；第三方部分保留其原有 MIT 许可。
+
+No project-wide license has been selected for the application source; third-party components retain their original MIT license.

@@ -1,0 +1,5 @@
+* text=auto eol=lf
+# Keep the frozen release sources and generated header byte-identical.
+src/** -text whitespace=trailing-space,space-before-tab,cr-at-eol
+kernels/fp16_native_kernel.py -text
+kernels/generated/embedded_kernels.h -text whitespace=trailing-space,space-before-tab,cr-at-eol
