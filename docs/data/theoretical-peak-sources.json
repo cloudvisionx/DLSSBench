@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "reviewed_on": "2026-10-28",
+  "purpose": "Documentation provenance and specification cross-checks; not a runtime dependency, product-name whitelist or benchmark database.",
+  "model": {
+    "compute_capabilities": [
+      "8.6",
+      "8.9"
+    ],
+    "flops_per_sm_per_cycle": 1024,
+    "operation_count": "FMA = 2 FLOPs",
+    "reference": "Full-rate dense FP16 with FP16 accumulation. Both accumulation modes are compared with this same denominator.",
+    "full_tflops_formula": "actual_sm_count * 1024 * median_sampled_sm_clock_mhz / 1000000",
+    "half_tflops_formula": "full_tflops / 2",
+    "clock_sampling": "Median of post-batch NVML SM-clock samples for each result row; not an upper bound over the timed interval.",
+    "runtime_source": "CUDA Driver API + NVIDIA NVML from the installed driver; no Internet lookup.",
+    "unavailable_when": "Unknown architecture, missing/invalid clock or SM count, or invalid benchmark result."
+  },
+  "sources": [
+    {
+      "id": "ampere",
+      "publisher": "NVIDIA",
+      "url": "https://www.nvidia.com/content/PDF/nvidia-ampere-ga-102-gpu-architecture-whitepaper-v2.pdf",
+      "captured_final_url": "https://www.nvidia.com/content/PDF/nvidia-ampere-ga-102-gpu-architecture-whitepaper-v2.pdf",
+      "role": "GA10x dense FP16-accumulation throughput: 4 Tensor Cores/SM * 128 FMAs/core/cycle * 2 FLOPs/FMA = 1024 FLOPs/SM/cycle.",
+      "snapshot_date": "2026-09-17",
+      "format": "pdf",
+      "bytes": 10053698,
+      "sha256": "28887b489ecd250911b912fead603ce8aa25e8fc3128c9ba0933cf452334868a",
+      "location": "Printed page 25, Table 6 and RTX 3080 throughput example",
+      "extracted_text_sha256": "c6a40cbbac8b6078d93751b1787b311c0f6d4dd1d325dc553ab4ea5396c737b0"
+    },
+    {
+      "id": "ada",
+      "publisher": "NVIDIA",
+      "url": "https://images.nvidia.com/aem-dam/Solutions/geforce/ada/nvidia-ada-gpu-architecture.pdf",
+      "captured_final_url": "https://images.nvidia.cn/aem-dam/Solutions/geforce/ada/nvidia-ada-gpu-architecture.pdf",
+      "role": "Cross-check: RTX 4090, 128 SMs at 2520 MHz, about 330.3 dense FP16-accumulation TFLOPS, consistent with 1024 FLOPs/SM/cycle.",
+      "snapshot_date": "2026-09-17",
+      "format": "pdf",
+      "bytes": 3856537,
+      "sha256": "7cbe859bf7e63e16921536042fef24788968667c967529427099e97be0805ed1",
+      "location": "Printed pages 29-31, Table 2",
+      "extracted_text_sha256": "9400cfc9fe2c800c4144321c9183e62625a3279e8a9aa364e54559ff0f56654f"
+    },
+    {
+      "id": "rtx30",
+      "publisher": "NVIDIA",
+      "url": "https://www.nvidia.com/en-us/geforce/graphics-cards/30-series/",
+      "captured_final_url": "https://www.nvidia.com/en-us/geforce/graphics-cards/30-series/",
+      "role": "Desktop model specification cross-checks. CUDA cores / 128 gives reference SM count for these GA10x models.",
+      "snapshot_date": "2026-09-17",
+      "format": "html",
+      "bytes": 661705,
+      "sha256": "d6cbe8431ba5a0877c00c8eb4331e55777d59610e1f6c010fff2b14f9afd3254",
+      "location": "Specifications table; RTX 3050 OEM footnote",
+      "extracted_text_sha256": "bfaf6a47b55f4a1e7a95a1b5e2dca6a1c01ee6c6ec34ad172d8a54a5e410bf62"
+    },
+    {
+      "id": "rtx40",
+      "publisher": "NVIDIA",
+      "url": "https://www.nvidia.com/en-us/geforce/graphics-cards/40-series/",
+      "captured_final_url": "https://www.nvidia.com/en-us/geforce/graphics-cards/40-series/",
+      "role": "Desktop model specification cross-checks. CUDA cores / 128 gives reference SM count for these Ada models.",
+      "snapshot_date": "2026-09-17",
+      "format": "html",
+      "bytes": 758350,
+      "sha256": "4bfcd68696b81e3f39d142bc3b7e3924d9c1f0f3d3bf78c19e6177f5e4c04fbe",
+      "location": "Specifications table",
+      "extracted_text_sha256": "6147116b3a0f6a932781f0b7ccc36abb59b9bfe79cef83180d076089116b6975"
+    },
+    {
+      "id": "cuda-gpus",
+      "publisher": "NVIDIA",
+      "url": "https://developer.nvidia.com/cuda-gpus",
+      "captured_final_url": "https://developer.nvidia.com/cuda/gpus",
+      "role": "Official compute-capability mapping; runtime detection remains authoritative.",
+      "snapshot_date": "2026-10-28",
+      "format": "html",
+      "bytes": 25538,
+      "sha256": "2f003768ed408db2e0db5c3c675b5569d4264ac1f946187ab4dc4bc718d36b9a"
+    },
+    {
+      "id": "cuda-device-api",
+      "publisher": "NVIDIA",
+      "url": "https://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__DEVICE.html",
+      "captured_final_url": "https://docs.nvidia.com/cuda/cuda-driver-api/cuda_driver_api/group__CUDA__DEVICE.html",
+      "role": "cuDeviceGetAttribute supplies actual enabled SM count and compute capability.",
+      "snapshot_date": "2026-10-28",
+      "format": "html",
+      "bytes": 93101,
+      "sha256": "7f795652ffc8f20b648c6766d893bdb36ccd164618effea60333adae5946762f",
+      "location": "cuDeviceGetAttribute"
+    },
+    {
+      "id": "nvml-clock-api",
+      "publisher": "NVIDIA",
+      "url": "https://docs.nvidia.com/deploy/nvml-api/latest/api/group__nvmlDeviceQueries.html",
+      "captured_final_url": "https://docs.nvidia.com/deploy/nvml-api/latest/api/group__nvmlDeviceQueries.html",
+      "role": "nvmlDeviceGetClockInfo supplies current SM clock speeds in MHz. The application samples after each batch.",
+      "snapshot_date": "2026-10-28",
+      "format": "html",
+      "bytes": 931879,
+      "sha256": "8039ca413e8c8ab5b00b7344c39cf75e13f2bea9add4db95e2e7b54d3620e521",
+      "location": "nvmlDeviceGetClockInfo"
+    }
+  ],
+  "reference_examples": [
+    {
+      "model": "RTX 3060 12GB",
+      "sm_count": 28,
+      "full_rate_dense_fp16_tflops": 50.950144,
+      "half_rate_tflops": 25.475072,
+      "example_clock_mhz": 1777
+    },
+    {
+      "model": "RTX 3070",
+      "sm_count": 46,
+      "full_rate_dense_fp16_tflops": 81.2544,
+      "half_rate_tflops": 40.6272,
+      "example_clock_mhz": 1725
+    },
+    {
+      "model": "RTX 3080 10GB",
+      "sm_count": 68,
+      "full_rate_dense_fp16_tflops": 119.07072,
+      "half_rate_tflops": 59.53536,
+      "example_clock_mhz": 1710
+    },
+    {
+      "model": "RTX 3090",
+      "sm_count": 82,
+      "full_rate_dense_fp16_tflops": 142.32576,
+      "half_rate_tflops": 71.16288,
+      "example_clock_mhz": 1695
+    },
+    {
+      "model": "RTX 4060",
+      "sm_count": 24,
+      "full_rate_dense_fp16_tflops": 60.45696,
+      "half_rate_tflops": 30.22848,
+      "example_clock_mhz": 2460
+    },
+    {
+      "model": "RTX 4070",
+      "sm_count": 46,
+      "full_rate_dense_fp16_tflops": 116.5824,
+      "half_rate_tflops": 58.2912,
+      "example_clock_mhz": 2475
+    },
+    {
+      "model": "RTX 4080 16GB",
+      "sm_count": 76,
+      "full_rate_dense_fp16_tflops": 194.94912,
+      "half_rate_tflops": 97.47456,
+      "example_clock_mhz": 2505
+    },
+    {
+      "model": "RTX 4090",
+      "sm_count": 128,
+      "full_rate_dense_fp16_tflops": 330.30144,
+      "half_rate_tflops": 165.15072,
+      "example_clock_mhz": 2520
+    }
+  ],
+  "validation_scope": {
+    "hardware_tested": [
+      "RTX 3090 / SM 8.6"
+    ],
+    "other_rtx30_rtx40_models": "Covered by the architecture formula; execution has not been validated on every model.",
+    "unit_reference_cases": "20 desktop specification cases, normalized at 1000 MHz; not measured boost clocks or performance."
+  },
+  "reference_examples_note": "Specified clock inputs for illustration, not universal factory clocks. RTX 3080 and RTX 4090 reproduce the cited whitepaper examples; runtime values use local samples."
+}

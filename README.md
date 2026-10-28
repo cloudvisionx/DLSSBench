@@ -60,6 +60,10 @@ Version 1.1 computes peak percentages for SM 8.6 / 8.9; missing clocks or an unk
 
 ## 兼容性与结果解释 / Compatibility and interpretation
 
+峰值模型覆盖 RTX 30 / 40 系（驱动实际报告的 SM 8.6 / 8.9），包含 Ti、SUPER、显存变体及 Laptop；从驱动读取实际 SM 数和频率，不依赖逐型号白名单。每 SM 每周期 1024 FLOPs 的依据、官方链接和覆盖说明见 [理论峰值的来源与 30 / 40 系覆盖](docs/THEORETICAL_PEAK.md)。
+
+The peak model covers RTX 30 / 40 GPUs reporting SM 8.6 / 8.9, including Ti, SUPER, memory variants and laptops, using actual SM counts and clocks rather than a name whitelist. See [peak sources and RTX 30 / 40 coverage](docs/THEORETICAL_PEAK.md) for the official basis of the 1024 FLOPs/SM/cycle coefficient and coverage details.
+
 已在 RTX 3090（SM 8.6）、NVIDIA 驱动 616.56 上验证。当前构建要求 SM 8.6 或更新架构；其他架构通过驱动 JIT 执行内嵌 PTX，尚未实测。较旧驱动可能不支持内嵌 PTX 8.7。
 
 Tested on RTX 3090 / SM 8.6 with driver 616.56. This build requires SM 8.6 or newer; driver-JIT execution on other architectures is untested. Older drivers may not support the embedded PTX 8.7.

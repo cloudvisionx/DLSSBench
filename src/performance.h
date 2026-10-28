@@ -8,6 +8,9 @@ struct PeakComparison {
 };
 
 // Full-rate dense FP16 accumulation, with a multiply-add counted as two ops.
+// Ampere GA10x (SM 8.6) / Ada (SM 8.9): 1024 FLOPs per SM per cycle.
+// Official basis, device-query sources and model coverage: docs/THEORETICAL_PEAK.md.
+// Model names are deliberately not used: SM counts/clocks come from the driver.
 // Keep unfamiliar architectures unavailable instead of extrapolating a rate.
 inline PeakComparison compare_peak(int major, int minor, int sms, int clock_mhz,
                                    double tflops, bool validated) {

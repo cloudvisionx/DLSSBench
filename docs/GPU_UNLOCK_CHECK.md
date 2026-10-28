@@ -30,6 +30,10 @@ Both tests use FP16 inputs and outputs, with different accumulator precisions. T
 
 Both accumulation modes use the same full-rate FP16 denominator. The model uses 1024 FLOPs per SM per cycle for SM 8.6 / 8.9. Missing clocks or an unknown architecture model show an unavailable result. Above 50% is an arithmetic comparison with that reference; results close to 50% especially require checking clock ranges and variation.
 
+官方推导、驱动数据来源及 RTX 30 / 40 系桌面与 Laptop 覆盖见 [理论峰值来源](THEORETICAL_PEAK.md)。
+
+See [peak sources](THEORETICAL_PEAK.md) for the official derivation, driver data sources and RTX 30 / 40 desktop/laptop coverage.
+
 正确性抽查与内存保护检查仍执行，失败时终止测试；细节保存在日志及 JSON / CSV 中。表格不再用“校验通过”作为是否需要 unlock 的提示。
 
 Numerical spot checks and memory guards still run and abort the test on failure. Details are in the log and JSON / CSV; the table no longer uses a correctness PASS field as an unlock-related indication.
