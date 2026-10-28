@@ -4,21 +4,21 @@
 
 A native Windows benchmark to measure Tensor Core throughput before attempting GPU unlock and help decide whether the relevant throughput limit needs unlocking. Users only need Windows x64 and a compatible NVIDIA driver.
 
-[下载 Windows 预览版 / Download Windows preview](https://github.com/cloudvisionx/DLSSBench/releases/tag/v1.0.0)
+[下载 Windows 预览版 / Download Windows preview](https://github.com/cloudvisionx/DLSSBench/releases/tag/v1.1.0)
 
 ![DLSS Bench：RTX 3090 实测界面 / Actual benchmark results on RTX 3090](docs/images/dlss-bench.png)
 
-RTX 3090 实测截图：FP16 输入，分别使用 FP16 / FP32 累加，每项 7 轮。截图来自一次运行，不是解锁前后对照。
+RTX 3090 实测截图：FP16 输入，分别使用 FP16 / FP32 累加，每项 7 轮。1.1 界面直接显示理论峰值、实测占比和是否超过 50%；截图来自一次运行，不是解锁前后对照。
 
-Actual RTX 3090 screenshot: FP16 inputs, separate FP16 / FP32 accumulation, seven trials per configuration. This is one run, not a before/after unlock comparison.
+Actual RTX 3090 screenshot: FP16 inputs, separate FP16 / FP32 accumulation, seven trials per configuration. Version 1.1 shows the reference peak, measured percentage and whether throughput exceeds 50%. This is one run, not a before/after unlock comparison.
 
 ## 下载与运行 / Download and run
 
-1. 打开本仓库的 **Releases** 页面，下载 `DLSSBench-1.0-win64.zip`。
+1. 打开本仓库的 **Releases** 页面，下载 `DLSSBench-1.1-win64.zip`。
 2. 解压后双击 `DLSSBench.exe`，选择 GPU，点击 **开始 / Start**。
 3. 点击 **Reports** 查看自动保存的 JSON / CSV。
 
-Download `DLSSBench-1.0-win64.zip` from **Releases**, extract it, and run `DLSSBench.exe`. Select a GPU and click **Start**. **Reports** opens the saved JSON and CSV files.
+Download `DLSSBench-1.1-win64.zip` from **Releases**, extract it, and run `DLSSBench.exe`. Select a GPU and click **Start**. **Reports** opens the saved JSON and CSV files.
 
 无需安装 Python、CUDA Toolkit、cuBLAS、Qt 或 VC++ Redistributable。程序内置计算内核与 C++ 运行时代码。
 
@@ -29,9 +29,10 @@ No separate Python, CUDA Toolkit, cuBLAS, Qt or Visual C++ Redistributable insta
 - 稠密矩阵乘法 `C = A × B`，FP16 输入与输出，分别使用 FP16 和 FP32 累加。
 - 原生中英文界面，可选择显卡、矩阵规模和测量轮次。
 - 显示 TFLOPS、逐轮范围及可用的驱动传感器数据。
-- 输出位置抽查、内存保护区检查，以及可取消的后台测试。
+- 显示满速稠密 FP16 理论峰值、实测占比和是否超过该峰值的 50%。
+- 后台保留输出位置抽查、内存保护区检查和取消功能；正确性细节写入报告。
 
-Dense FP16-input/output GEMM with separate FP16 and FP32 accumulation. The bilingual GUI supports GPU/size/trial selection, cancellation, sampled numerical checks, memory guards and JSON/CSV export.
+Dense FP16-input/output GEMM with separate FP16 and FP32 accumulation. The bilingual GUI shows throughput, the full-rate dense FP16 reference peak, peak percentage and the >50% comparison. Numerical spot checks and memory guards remain active, with details in JSON/CSV reports.
 
 名称为 DLSS Bench；当前版本测量矩阵计算吞吐，不测量 DLSS 游戏帧率或图像质量。
 
@@ -49,13 +50,13 @@ The current version measures matrix-compute throughput. It does not benchmark DL
 
 Check **FP16 and FP32 accumulation separately**; both use FP16 inputs. A low or borderline score is inconclusive because clocks, power, temperature, background load, matrix size and kernel efficiency also affect throughput. A high post-unlock score describes the current boot; deciding whether unlock can be skipped requires a boot in which no unlock tool has run.
 
-以 RTX 3090 为例：在 1740 MHz 参考频率下，常规 FP32 累加半速上限约 **73.05 TFLOPS**；截图中的同项实测约 **124.02 TFLOPS**。这展示了如何比较受限水平，不能把 73.05 当作所有显卡、所有频率的固定阈值。
+以 RTX 3090 为例：在 1740 MHz 参考频率下，满速稠密 FP16 峰值为 **146.10 TFLOPS**，其一半约为 **73.05 TFLOPS**；截图的 FP32 累加实测约 **124.56 TFLOPS / 85.3%**。两种累加共用满速 FP16 参考，不能把受限 FP32 累加峰值当成分母。73.05 不是所有显卡、所有频率的固定阈值。
 
-For an RTX 3090 at a reference clock of 1740 MHz, the usual half-rate FP32-accumulation ceiling is about **73.05 TFLOPS**, versus **124.02 TFLOPS** in the screenshot. This illustrates the comparison; 73.05 is not a universal cutoff for other GPUs or clocks.
+For an RTX 3090 at a reference clock of 1740 MHz, the full-rate dense FP16 peak is **146.10 TFLOPS** and half is about **73.05 TFLOPS**. The screenshot reports **124.56 TFLOPS / 85.3%** for FP32 accumulation. Both modes share the full-rate FP16 reference; the denominator is not the capped FP32 peak. 73.05 is not a universal cutoff for other GPUs or clocks.
 
-当前版本提供性能证据，需人工对照，不会自动判定锁定状态，也不会执行 unlock。频率上界、计算公式及判断边界见 [GPU unlock 判断指南](docs/GPU_UNLOCK_CHECK.md)。
+1.1 自动计算 SM 8.6 / 8.9 的峰值占比；缺少有效频率或未建立架构模型时显示未知。频率为 NVML 批次后采样，因此这是参考比较，不会自动判定锁定状态，也不会执行 unlock。频率上界、计算公式及判断边界见 [GPU unlock 判断指南](docs/GPU_UNLOCK_CHECK.md)。
 
-The current version provides performance evidence for manual interpretation; it does not automatically detect lock status or perform an unlock. See the [GPU unlock decision guide](docs/GPU_UNLOCK_CHECK.md) for clock bounds, formulas and interpretation limits.
+Version 1.1 computes peak percentages for SM 8.6 / 8.9; missing clocks or an unknown architecture model produce an unavailable result. Clocks are post-batch NVML samples, so this is a reference comparison, not automatic lock detection. The app does not perform an unlock. See the [GPU unlock decision guide](docs/GPU_UNLOCK_CHECK.md) for clock bounds, formulas and interpretation limits.
 
 ## 兼容性与结果解释 / Compatibility and interpretation
 

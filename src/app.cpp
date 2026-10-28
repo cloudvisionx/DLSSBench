@@ -78,7 +78,7 @@ struct App {
             OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI");
         title = control(L"STATIC", L"DLSS Bench", SS_LEFT);
         SendMessageW(title, WM_SETFONT, WPARAM(title_font), TRUE);
-        subtitle = control(L"STATIC", L"整卡稠密矩阵乘法 · 分别测量 FP16 / FP32 累加\r\nWhole-GPU dense GEMM · FP16 inputs, two accumulation precisions", SS_LEFT);
+        subtitle = control(L"STATIC", L"GPU unlock 参考 · 满速稠密 FP16 峰值按采样频率估算\r\nUnlock reference · Full-rate dense FP16 peak estimated from sampled clocks", SS_LEFT);
         gpu_label = control(L"STATIC", L"显卡 / GPU", SS_LEFT);
         device = control(WC_COMBOBOXW,L"",CBS_DROPDOWNLIST | WS_TABSTOP | WS_VSCROLL,DeviceChoice);
         size_label = control(L"STATIC", L"矩阵规模 / Matrix size",SS_LEFT);
@@ -97,15 +97,16 @@ struct App {
         table = control(WC_LISTVIEWW,L"",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS,0,WS_EX_CLIENTEDGE);
         ListView_SetExtendedListViewStyle(table,LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER);
         struct Column { const wchar_t* text; int width; } columns[]{
-            {L"规模 / N",100},{L"累加 / Accum.",150},{L"TFLOPS",100},{L"范围 / Range",155},
-            {L"MHz",70},{L"功耗 / W",85},{L"温度 / °C",85},{L"校验 / Check",105}};
+            {L"规模 / N",65},{L"累加 / Accum.",100},{L"TFLOPS",85},{L"理论 / Peak",105},
+            {L"占比 / %",90},{L"超半速 / >50%",130},{L"范围 / Range",130},
+            {L"MHz",60},{L"功耗 / W",70},{L"温度 / °C",80}};
         for (int i = 0; i < int(std::size(columns)); ++i) {
             LVCOLUMNW col{}; col.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
             col.pszText = const_cast<wchar_t*>(columns[i].text); col.cx = px(columns[i].width); col.iSubItem = i;
             ListView_InsertColumn(table,i,&col);
         }
         log = control(L"EDIT",L"",ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | WS_VSCROLL,0,WS_EX_CLIENTEDGE);
-        footer = control(L"STATIC",L"按当前频率与负载测量；报告自动保存为 JSON / CSV。\r\nResults reflect current clocks and load. Reports are saved automatically.",SS_LEFT);
+        footer = control(L"STATIC",L"未解锁启动中明显超半速，可不再为此解锁；低分仍待判断。\r\nClearly above half without unlock: no need for that cap; lower is inconclusive.",SS_LEFT);
         EnableWindow(start,FALSE); EnableWindow(stop,FALSE);
         try {
             devices = fpbench::enumerate_devices();
@@ -122,6 +123,8 @@ struct App {
                 SetWindowTextW(status,L"准备就绪 / Ready");
             } else SetWindowTextW(status,L"此版本需要 NVIDIA SM 8.6 或更新 GPU / NVIDIA SM 8.6+ required");
             append(L"无需安装 Python 或 CUDA Toolkit / No Python or CUDA Toolkit installation required.");
+            append(L"理论峰值 = SM × 1024 × 采样 MHz / 1000000（SM 8.6 / 8.9）；两种累加使用相同满速 FP16 参考。\r\nPeak = SM × 1024 × sampled MHz / 1000000 (SM 8.6 / 8.9); both modes share the full-rate FP16 reference.");
+            append(L"超半速仅比较吞吐；频率为抽样，临界值不能直接判定是否需要解锁。校验细节保存在报告中。\r\nAbove half compares throughput; sampled clocks make borderline results inconclusive. Correctness details are saved in reports.");
         } catch (const std::exception& error) {
             SetWindowTextW(status,L"无法检测显卡 / GPU detection failed"); append(fpbench::wide(error.what()));
         }
@@ -187,15 +190,29 @@ struct App {
         auto size_text = std::to_wstring(row.n);
         LVITEMW item{}; item.mask = LVIF_TEXT; item.iItem = i; item.pszText = size_text.data();
         ListView_InsertItem(table,&item);
-        std::wstring cells[]{row.half ? L"FP16" : L"FP32", number(row.median), number(row.minimum) + L" – " + number(row.maximum),
-            row.clock < 0 ? L"—" : std::to_wstring(row.clock),number(row.power_w,1),row.temperature < 0 ? L"—" : std::to_wstring(row.temperature),
-            row.valid && row.guards ? L"通过 / PASS" : L"失败 / FAIL"};
+        std::wstring cells[]{row.half ? L"FP16" : L"FP32", number(row.median),
+            row.peak.available ? number(row.peak.full_tflops) : L"—",
+            row.peak.available ? number(row.peak.percent,1) + L"%" : L"—",
+            row.peak.available ? (row.peak.above_half ? L"超过 / Yes" : L"未超过 / No") : L"未知 / N/A",
+            number(row.minimum) + L" – " + number(row.maximum),
+            row.clock < 0 ? L"—" : std::to_wstring(row.clock),number(row.power_w,1),
+            row.temperature < 0 ? L"—" : std::to_wstring(row.temperature)};
         for (int column = 1; column <= int(std::size(cells)); ++column)
             ListView_SetItemText(table,i,column,cells[column-1].data());
     }
     void finished(const fpbench::Report& report) {
         if (worker.joinable()) worker.join(); set_running(false);
-        if (report.status == "completed") SetWindowTextW(status,L"测试完成，校验通过 / Completed, validation passed");
+        if (report.status == "completed") {
+            bool fp32_seen = false, fp32_above = true;
+            for (const auto& row : report.rows) if (!row.half) {
+                fp32_seen = true;
+                fp32_above = fp32_above && row.peak.available && row.peak.above_half;
+            }
+            SetWindowTextW(status,fp32_seen && fp32_above
+                ? L"测试完成：FP32 累加超过 50% 参考峰值 / Complete: FP32 accumulation above half-reference-peak"
+                : L"测试完成：请查看峰值占比，是否需解锁仍待判断 / Complete: review peak %, unlock need is inconclusive");
+            append(L"计算结果抽查与内存保护检查通过；详细结果见 JSON / CSV。\r\nNumerical spot checks and memory guards passed; details are in JSON / CSV.");
+        }
         else if (report.status == "cancelled") SetWindowTextW(status,L"已停止，资源已清理 / Stopped, resources cleaned up");
         else SetWindowTextW(status,L"测试失败，请查看日志 / Test failed; see log");
         if (!report.error.empty()) append(fpbench::wide(report.error));
@@ -234,7 +251,7 @@ LRESULT CALLBACK window_proc(HWND window,UINT message,WPARAM wp,LPARAM lp) {
             ShellExecuteW(window,L"open",folder.c_str(),nullptr,nullptr,SW_SHOWNORMAL); return 0;
         }
         case About:
-            MessageBoxW(window,(L"DLSS Bench 1.0\r\n\r\nWindows + NVIDIA 驱动即可运行。\r\nOnly Windows and the NVIDIA driver are required.\r\n\r\n运行时不需要 Python、CUDA Toolkit 或 cuBLAS。\r\nNo Python, CUDA Toolkit or cuBLAS runtime is required.\r\n\r\n当前版本：SM 8.6 原生内核；更新 GPU 通过驱动 JIT，尚未实测。\r\nNative SM 8.6 kernels; newer GPUs use driver JIT and remain unvalidated.\r\n\r\nEmbedded GEMM kernels derive from Triton's MIT-licensed tutorial.\r\n\r\n" + fpbench::wide(fpbench::license_text())).c_str(),L"关于 / About",MB_OK | MB_ICONINFORMATION); return 0;
+            MessageBoxW(window,(L"DLSS Bench 1.1\r\n\r\nWindows + NVIDIA 驱动即可运行。\r\nOnly Windows and the NVIDIA driver are required.\r\n\r\n运行时不需要 Python、CUDA Toolkit 或 cuBLAS。\r\nNo Python, CUDA Toolkit or cuBLAS runtime is required.\r\n\r\n占比 = 实测 / 满速稠密 FP16 参考峰值；>50% 为比较结果，不自动判定锁定状态。\r\nPeak % = measured / full-rate dense FP16 reference peak; >50% does not automatically detect lock status.\r\n\r\n峰值模型支持 SM 8.6 / 8.9，按批次后采样的 SM 频率估算；临界结果不能直接判断是否需解锁。\r\nPeak model: SM 8.6 / 8.9, using post-batch sampled SM clocks; borderline results are inconclusive.\r\n\r\n当前版本：SM 8.6 原生内核；更新 GPU 通过驱动 JIT，尚未实测。\r\nNative SM 8.6 kernels; newer GPUs use driver JIT and remain unvalidated.\r\n\r\nEmbedded GEMM kernels derive from Triton's MIT-licensed tutorial.\r\n\r\n" + fpbench::wide(fpbench::license_text())).c_str(),L"关于 / About",MB_OK | MB_ICONINFORMATION); return 0;
         case DeviceChoice:
             if (HIWORD(wp) == CBN_SELCHANGE && !app->running) {
                 int i = int(SendMessageW(app->device,CB_GETCURSEL,0,0));

@@ -17,6 +17,23 @@ Run the default 4096 + 8192 test with seven trials per configuration in a boot w
 
 Both tests use FP16 inputs and outputs, with different accumulator precisions. The embedded SM 8.6 kernels were verified as `HMMA.16816.F16` and `HMMA.16816.F32`. **Full-rate FP16 accumulation does not establish unrestricted FP32 accumulation.** Similar scores alone are also insufficient because another bottleneck can slow both modes.
 
+## 1.1 界面字段 / Version 1.1 result columns
+
+| 字段 / Column | 含义 / Meaning |
+| --- | --- |
+| TFLOPS | 本项实测中位数 / Measured median throughput |
+| 理论 / Peak | 按中位采样 SM 频率估算的满速稠密 FP16 峰值 / Full-rate dense FP16 peak at the median sampled SM clock |
+| 占比 / % | `100 × 实测 TFLOPS / 理论峰值` / Measured throughput as a percentage of the reference peak |
+| 超半速 / >50% | 实测是否严格大于参考峰值的一半 / Whether throughput strictly exceeds half the reference peak |
+
+两种累加模式使用相同的满速 FP16 分母。SM 8.6 / 8.9 采用每 SM 每周期 1024 FLOPs；缺少有效频率或架构没有对应模型时显示 `— / 未知`，不会猜测。超过 50% 是这组参考数值的算术比较，贴近 50% 时尤其需要检查频率范围和波动。
+
+Both accumulation modes use the same full-rate FP16 denominator. The model uses 1024 FLOPs per SM per cycle for SM 8.6 / 8.9. Missing clocks or an unknown architecture model show an unavailable result. Above 50% is an arithmetic comparison with that reference; results close to 50% especially require checking clock ranges and variation.
+
+正确性抽查与内存保护检查仍执行，失败时终止测试；细节保存在日志及 JSON / CSV 中。表格不再用“校验通过”作为是否需要 unlock 的提示。
+
+Numerical spot checks and memory guards still run and abort the test on failure. Details are in the log and JSON / CSV; the table no longer uses a correctness PASS field as an unlock-related indication.
+
 ## RTX 3090 计算示例 / RTX 3090 worked example
 
 以下公式限定于此处讨论的 GA10x / RTX 30 系稠密 FP16 Tensor 路径。其他架构、精度及指令应另行核对，不能直接套用。
@@ -36,8 +53,8 @@ An RTX 3090 has 82 SMs. Using 1740 MHz as a reference:
 | --- | ---: |
 | 满速 FP16 累加理论峰值 / Full-rate FP16-accumulation theoretical peak | 146.10 |
 | 常规半速 FP32 累加理论峰值 / Usual half-rate FP32-accumulation theoretical peak | 73.05 |
-| 截图 N=8192，FP16 累加中位数 / Screenshot FP16-accumulation median | 119.00 |
-| 截图 N=8192，FP32 累加中位数 / Screenshot FP32-accumulation median | 124.02 |
+| 截图 N=8192，FP16 累加中位数 / Screenshot FP16-accumulation median | 118.46 |
+| 截图 N=8192，FP32 累加中位数 / Screenshot FP32-accumulation median | 124.56 |
 
 ![RTX 3090 跑分截图 / RTX 3090 benchmark screenshot](images/dlss-bench.png)
 
@@ -59,4 +76,6 @@ The screenshot is from one GUI validation run on 2026-10-28. Both N=8192 rows sh
 
 - [NVIDIA Ampere GA102 architecture whitepaper](https://www.nvidia.com/content/PDF/nvidia-ampere-ga-102-gpu-architecture-whitepaper-v2.pdf), page 25, Table 6: dense FP16-accumulation throughput and its distinction from sparse throughput.
 - [Zagitta/gpu-unlock](https://github.com/Zagitta/gpu-unlock): upstream description of the FP32-accumulation rate limit and unlock mechanism.
+- [NVIDIA Ada architecture whitepaper](https://images.nvidia.com/aem-dam/Solutions/geforce/ada/nvidia-ada-gpu-architecture.pdf): dense FP16 Tensor throughput for SM 8.9.
+- [Peak-reference model](../src/performance.h): architecture scope, clock handling and the strict half-peak comparison.
 - [Benchmark kernel](../kernels/fp16_native_kernel.py) and [generated manifest](../kernels/generated/manifest.json): accumulation variants and the checked SM 8.6 HMMA instructions.

@@ -273,7 +273,7 @@ void save(const Report& report) {
     std::ofstream trials(directory / L"trials.csv", std::ios::binary | std::ios::trunc);
     require(bool(json) && bool(summary) && bool(trials), "Unable to write report files");
     json << std::setprecision(15);
-    json << "{\n\"schema_version\":1,\"app\":\"DLSS Bench 1.0\",\"status\":" << quoted(report.status)
+    json << "{\n\"schema_version\":2,\"app\":\"DLSS Bench 1.1\",\"status\":" << quoted(report.status)
          << ",\"started_utc\":" << quoted(report.started) << ",\"finished_utc\":" << quoted(report.finished)
          << ",\"error\":" << quoted(report.error) << ",\"cleanup_ok\":" << (report.cleanup_ok ? "true" : "false")
          << ",\"backend\":" << quoted(report.backend) << ",\"kernel_source_sha256\":\"" << kKernelSourceSha256
@@ -285,8 +285,13 @@ void save(const Report& report) {
          << "\"limitations\":[\"Fixed precompiled GEMM backend, not cuBLAS or an exhaustive peak search\","
          << "\"No matched locked baseline; no unlock speedup inferred\","
          << "\"21 numerical samples checked first and last trial, plus output guards; not exhaustive stability testing\","
-         << "\"NVML readings after each batch have sensor refresh latency\"],\n\"rows\":[";
-    summary << "\xEF\xBB\xBFN,accumulator,median_TFLOPS,min_TFLOPS,max_TFLOPS,median_ms,SM_clock_MHz,power_W,max_temp_C,validation,max_abs_error\r\n";
+          << "\"NVML readings after each batch have sensor refresh latency\","
+          << "\"Peak reference uses median sampled SM clock, not a measured maximum clock\","
+          << "\"Above half-reference-peak is a throughput comparison, not automatic unlock detection\"],"
+          << "\n\"peak_reference\":{\"precision\":\"full-rate dense FP16 accumulation\","
+          << "\"supported_compute_capabilities\":[\"8.6\",\"8.9\"],\"flops_per_sm_cycle\":1024,"
+          << "\"clock_basis\":\"median of post-batch NVML SM-clock samples\"},\n\"rows\":[";
+    summary << "\xEF\xBB\xBFN,accumulator,median_TFLOPS,min_TFLOPS,max_TFLOPS,median_ms,SM_clock_MHz,power_W,max_temp_C,validation,max_abs_error,reference_full_TFLOPS,reference_half_TFLOPS,percent_of_reference_peak,above_half_reference_peak\r\n";
     bool first = true;
     for (const auto& row : report.rows) {
         if (!first) json << ','; first = false;
@@ -296,12 +301,25 @@ void save(const Report& report) {
              << ",\"sm_clock_mhz\":" << row.clock << ",\"power_w\":" << row.power_w << ",\"temperature_c\":" << row.temperature
              << ",\"checked_elements\":" << row.checked << ",\"max_abs_error\":" << row.max_error
              << ",\"validation_passed\":" << (row.valid ? "true" : "false") << ",\"guards_intact\":" << (row.guards ? "true" : "false")
-             << ",\"cubin_sha256\":\"" << row.cubin_hash << "\"}";
+             << ",\"cubin_sha256\":\"" << row.cubin_hash << "\",\"reference_full_tflops\":";
+        if (row.peak.available) json << row.peak.full_tflops; else json << "null";
+        json << ",\"reference_half_tflops\":";
+        if (row.peak.available) json << row.peak.half_tflops; else json << "null";
+        json << ",\"percent_of_reference_peak\":";
+        if (row.peak.available) json << row.peak.percent; else json << "null";
+        json << ",\"above_half_reference_peak\":";
+        if (row.peak.available) json << (row.peak.above_half ? "true" : "false"); else json << "null";
+        json << '}';
         summary << std::setprecision(10) << row.n << ',' << mode << ',' << row.median << ',' << row.minimum << ',' << row.maximum << ',' << row.ms << ',';
         if (row.clock >= 0) summary << row.clock;
         summary << ','; if (row.power_w >= 0) summary << row.power_w;
         summary << ','; if (row.temperature >= 0) summary << row.temperature;
-        summary << ',' << (row.valid ? "PASS" : "FAIL") << ',' << row.max_error << "\r\n";
+        summary << ',' << (row.valid ? "PASS" : "FAIL") << ',' << row.max_error << ',';
+        if (row.peak.available)
+            summary << row.peak.full_tflops << ',' << row.peak.half_tflops << ',' << row.peak.percent << ','
+                    << (row.peak.above_half ? "true" : "false");
+        else summary << ",,,";
+        summary << "\r\n";
     }
     json << "\n],\"trials\":["; first = true;
     trials << "N,accumulator,repetition,order,gemms,batch_ms,ms_per_gemm,TFLOPS,SM_clock_MHz,power_mW,temperature_C\r\n";
@@ -406,6 +424,8 @@ Report run(const Config& config, std::atomic<bool>& stop, Progress progress, Row
                 row.median = median(rates); row.ms = median(times);
                 row.minimum = *std::min_element(rates.begin(), rates.end()); row.maximum = *std::max_element(rates.begin(), rates.end());
                 row.clock = int(median(clocks)); row.power_w = median(powers);
+                row.peak = compare_peak(report.device.major, report.device.minor, report.device.sms,
+                                        row.clock, row.median, row.valid && row.guards);
                 report.rows.push_back(row); save(report); if (ready) ready(row);
             }
             cuda->free_case();

@@ -4,6 +4,7 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include "performance.h"
 
 namespace fpbench {
 struct Device {
@@ -28,6 +29,7 @@ struct Row {
     bool half = true, valid = false, guards = false;
     double median = 0, minimum = 0, maximum = 0, ms = 0, power_w = -1, max_error = 0;
     std::string cubin_hash;
+    PeakComparison peak;
 };
 struct Report {
     Device device;

@@ -43,23 +43,24 @@ Only kernel developers need Python, Triton and `nvdisasm`. The reference compile
 
 ## 验证 / Verification
 
-普通 GUI 操作：双击生成的 EXE，点击 Start，查看数值检查和 Reports。
+普通 GUI 操作：双击生成的 EXE，点击 Start，查看峰值占比和 Reports。
 
 ```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\test_performance.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\test_gui.ps1
 ```
 
-GUI 验收脚本会执行实际 GPU 测试，检查完成、计时期间取消、资源清理和加载的模块，并保存界面截图。它要求当前 Windows 桌面可交互、有支持的 NVIDIA GPU 和驱动。输出在 `build\qa` 的新目录。该脚本使用 Windows 自带的 PowerShell / .NET，不随成品运行。
+峰值比较单元检查不执行 GPU 工作，覆盖规格计算、50% 边界、无频率、未知架构和无效结果。GUI 验收脚本会执行实际 GPU 测试，检查完成、计时期间取消、资源清理和加载的模块，并保存界面截图。它要求当前 Windows 桌面可交互、有支持的 NVIDIA GPU 和驱动。输出在 `build\qa` 的新目录。该脚本使用 Windows 自带的 PowerShell / .NET，不随成品运行。
 
-The GUI QA script runs actual GPU work, checks completion/cancellation/cleanup and module dependencies, and captures the window. It requires an interactive Windows desktop and supported NVIDIA GPU/driver. Evidence is saved under `build\qa`.
+The peak-reference checks run without GPU work and cover specification arithmetic, the 50% boundary, missing clocks, unknown architectures and invalid results. GUI QA runs actual GPU work, checks completion/cancellation/cleanup and module dependencies, and captures the window. It requires an interactive Windows desktop and supported NVIDIA GPU/driver. Evidence is saved under `build\qa`.
 
 ## 源码与发布版 / Source and release
 
-`src` 与 `kernels\fp16_native_kernel.py` 对应已发布的 1.0 预览版实现。导出时保留源码字节和已验证的内核头文件；生成 manifest 记录对应哈希。构建入口已改为独立仓库路径。
+当前应用源码包含 1.1 的峰值占比界面和报告字段。GPU 内核沿用 1.0 的已验证实现及生成头文件，没有更改矩阵计算或计时边界。manifest 中的 `release_application_source_sha256` 保留原始 1.0 源码哈希，不是当前应用源码哈希；原始源码可见 [1.0 源码提交](https://github.com/cloudvisionx/DLSSBench/tree/c5a52ceb1c448644d864d722b717805d8dfe9887)。
 
 当前构建脚本不生成 PDB；既有 1.0 EXE 使用开发构建的调试链接参数。MSVC 版本、链接参数、时间戳和文件路径可能使重新构建的 EXE 哈希不同，因此不宣称逐字节可重复构建。
 
-The app and kernel sources correspond to the published 1.0 implementation. Exported source bytes and the validated generated kernel header are preserved; `.gitattributes` prevents line-ending conversion from invalidating their manifest hashes. The standalone build omits PDB generation; the original release used debug link flags. Toolchain, linker settings, timestamps and paths can change the EXE hash, so this is not a claim of byte-for-byte reproducible builds.
+Current app sources include the 1.1 peak-percentage UI and report fields. Validated GPU kernels and timing boundaries are retained from 1.0. The manifest's `release_application_source_sha256` records the original 1.0 sources, not the current app. `.gitattributes` preserves source/header bytes. The standalone build omits PDB generation; the original release used debug link flags. Toolchain, linker settings, timestamps and paths can change the EXE hash, so this is not a claim of byte-for-byte reproducible builds.
 
 Triton 的 PTX / cubin 含源码路径等调试元数据，移动目录后重建可能改变文件哈希。此次独立目录重建已检查八组真实 SASS 指令，与原始构建一致；文件哈希不作为跨目录重建的相等条件。
 

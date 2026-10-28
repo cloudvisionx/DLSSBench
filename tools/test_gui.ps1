@@ -107,6 +107,20 @@ foreach ($kind in $kinds) {
         if (!$report.cleanup_ok) { throw 'CUDA resources did not clean up' }
         if ($kind -eq 'complete') {
             if ($report.status -ne 'completed' -or $report.rows.Count -ne 4) { throw 'GUI completion failed' }
+            if ($report.schema_version -ne 2) { throw 'Expected the peak-reference report schema' }
+            foreach ($row in $report.rows) {
+                if (!$row.validation_passed -or !$row.guards_intact) { throw 'Numerical checks or output guards failed' }
+                $hasModel = $report.device.major -eq 8 -and $report.device.minor -in @(6,9)
+                if ($hasModel -and $row.sm_clock_mhz -gt 0) {
+                    $peak = $report.device.sm_count * 1024.0 * $row.sm_clock_mhz / 1000000
+                    if ([Math]::Abs($row.reference_full_tflops - $peak) -gt 0.000001 -or
+                        [Math]::Abs($row.reference_half_tflops - $peak / 2) -gt 0.000001 -or
+                        [Math]::Abs($row.percent_of_reference_peak - 100 * $row.median_tflops / $peak) -gt 0.000001 -or
+                        $row.above_half_reference_peak -ne ($row.median_tflops -gt $peak / 2)) {
+                        throw 'Peak-reference report fields are inconsistent'
+                    }
+                } elseif ($null -ne $row.above_half_reference_peak) { throw 'Unavailable peak reference must not return a verdict' }
+            }
             $modules = @($nativeUiProcess.Modules | ForEach-Object { @{name=$_.ModuleName;path=$_.FileName} })
             $modules | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 -LiteralPath (Join-Path $evidence 'loaded-modules.json')
             if (@($modules | Where-Object { $_.name -match 'python|cublas|cudart|nvrtc|Qt|tcl|tk86|vcruntime|msvcp140' }).Count) { throw 'Unexpected runtime dependency loaded' }
